@@ -1,0 +1,25 @@
+{
+  "name": "woodpecker_am_networking",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mohamedsaeed12/Woodpecker_AM_networking.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Mohamedsaeed12/Woodpecker_AM_networking/issues"
+  },
+  "homepage": "https://github.com/Mohamedsaeed12/Woodpecker_AM_networking#readme",
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "express": "^4.21.1"
+  }
+}

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Send Data to C++ Server</title>
+</head>
+<body>
+  <h1>Send Data to C++ Server</h1>
+  <form id="dataForm">
+    <input type="text" id="message" placeholder="Enter message" required />
+    <button type="submit">Send</button>
+  </form>
+
+  <script>
+    document.getElementById('dataForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const message = document.getElementById('message').value;
+
+      fetch('/send-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message }),
+      })
+        .then(response => response.text())
+        .then(data => {
+          alert('Response from server: ' + data);
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+    });
+  </script>
+</body>
+</html>
