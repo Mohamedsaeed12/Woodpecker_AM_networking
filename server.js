@@ -18,7 +18,7 @@ app.post('/send-data', (req, res) => {
   const message = req.body.message;
 
   const client = new net.Socket();
-  const cppServerHost = '127.0.0.1'; 
+  const cppServerHost = '5.tcp.ngrok.io'; 
   const cppServerPort = 25030; 
 
   client.connect(cppServerPort, cppServerHost, () => {
@@ -29,7 +29,6 @@ app.post('/send-data', (req, res) => {
   client.on('data', (data) => {
     console.log('Received from C++ server:', data.toString());
     res.send(`C++ server response: ${data.toString()}`);
-    client.destroy();
   });
 
   client.on('error', (err) => {
@@ -40,6 +39,12 @@ app.post('/send-data', (req, res) => {
   client.on('close', () => {
     console.log('Connection to C++ server closed');
   });
+
+  client.on('end', () => {
+    console.log('Connection ended by the C++ server');
+  });
+
+  client.write("hellow ")
 });
 
 app.listen(port, () => {
