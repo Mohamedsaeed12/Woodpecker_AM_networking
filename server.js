@@ -14,21 +14,22 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.post('/send-data', (req, res) => {
-  const message = req.body.message;
+app.post('/send-status', (req, res) => {
+  const status = req.body.status;
 
   const client = new net.Socket();
-  const cppServerHost = '5.tcp.ngrok.io'; 
-  const cppServerPort = 25030; 
+  const cppServerHost = '5.tcp.ngrok.io';
+  const cppServerPort = 25030;
 
   client.connect(cppServerPort, cppServerHost, () => {
     console.log('Connected to C++ server');
-    client.write(message);
+    client.write(status);
   });
 
   client.on('data', (data) => {
     console.log('Received from C++ server:', data.toString());
-    res.send(`C++ server response: ${data.toString()}`);
+    res.json({ message: `C++ server response: ${data.toString()}` });
+    client.destroy();
   });
 
   client.on('error', (err) => {
@@ -43,10 +44,9 @@ app.post('/send-data', (req, res) => {
   client.on('end', () => {
     console.log('Connection ended by the C++ server');
   });
-
-  client.write("hellow ")
 });
 
 app.listen(port, () => {
   console.log(`Node.js server running at http://localhost:${port}`);
 });
+

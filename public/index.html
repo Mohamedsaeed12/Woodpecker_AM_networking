@@ -6,33 +6,35 @@
   <title>Send Data to C++ Server</title>
 </head>
 <body>
-  <h1>Send Data to C++ Server</h1>
-  <form id="dataForm">
-    <input type="text" id="message" placeholder="Enter message" required />
-    <button type="submit">Send</button>
-  </form>
-
+  <button id="on-button">Turn ON</button>
+  <button id="off-button">Turn OFF</button>
+  <div id="response"></div>
+  
   <script>
-    document.getElementById('dataForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      const message = document.getElementById('message').value;
-
-      fetch('/send-data', {
+    document.getElementById('on-button').addEventListener('click', () => {
+      sendStatus('ON');
+    });
+  
+    document.getElementById('off-button').addEventListener('click', () => {
+      sendStatus('OFF');
+    });
+  
+    function sendStatus(status) {
+      fetch('/send-status', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: status }),
       })
-        .then(response => response.text())
+        .then(response => response.json())
         .then(data => {
-          alert('Response from server: ' + data);
+          document.getElementById('response').textContent = data.message;
         })
         .catch(error => {
           console.error('Error:', error);
         });
-    });
+    }
   </script>
+  
 </body>
 </html>
 
