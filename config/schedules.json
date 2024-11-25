@@ -1,0 +1,22 @@
+{
+  "schedules": [
+    {
+      "id": "1732549061352",
+      "username": "admin",
+      "startTime": "2024-11-25T10:37",
+      "endTime": "2024-11-25T00:37"
+    },
+    {
+      "id": "1732561410447",
+      "username": "mohamed",
+      "startTime": "2024-11-25T14:03",
+      "endTime": "2024-11-25T13:03"
+    },
+    {
+      "id": "1732561428430",
+      "username": "mohamed",
+      "startTime": "2024-11-25T15:03",
+      "endTime": "2024-11-25T18:03"
+    }
+  ]
+}

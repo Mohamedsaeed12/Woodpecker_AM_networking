@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECU Control Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>Vehicle ECU Remote Control Dashboard</h1>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="ecu-panel">
+            <h2>Brake Controller <span class="status-indicator"></span></h2>
+            <div class="control-group">
+                <button class="control-btn start" onclick="toggleRelay(this, 'brake')">Relay 1 OFF</button>
+            </div>
+        </div>
+
+        <div class="ecu-panel">
+            <h2>Steering System 1 <span class="status-indicator"></span></h2>
+            <div class="control-group">
+                <button class="control-btn start" onclick="toggleRelay(this, 'steering1')">Relay 2 OFF</button>
+            </div>
+        </div>
+
+        <div class="ecu-panel">
+            <h2>Steering System 2 <span class="status-indicator"></span></h2>
+            <div class="control-group">
+                <button class="control-btn start" onclick="toggleRelay(this, 'steering2')">Relay 3 OFF</button>
+            </div>
+        </div>
+
+        <div class="ecu-panel">
+            <h2>MCM Radio Receiver <span class="status-indicator"></span></h2>
+            <div class="control-group">
+                <button class="control-btn start" onclick="toggleRelay(this, 'mcm')">Relay 4 OFF</button>
+            </div>
+        </div>
+
+        <div class="ecu-panel">
+            <h2>TCM Accelerator <span class="status-indicator"></span></h2>
+            <div class="control-group">
+                <button class="control-btn start" onclick="toggleRelay(this, 'tcm')">Relay 5 OFF</button>
+            </div>
+        </div>
+
+        <div class="ecu-panel">
+            <h2>LSCM Lighting System <span class="status-indicator"></span></h2>
+            <div class="control-group">
+                <button class="control-btn start" onclick="toggleRelay(this, 'lscm')">Relay 6 OFF</button>
+            </div>
+        </div>
+
+        <div class="ecu-panel">
+            <h2>5V Power Supply <span class="status-indicator"></span></h2>
+            <div class="control-group">
+                <button class="control-btn start" onclick="toggleRelay(this, 'power')">Relay 7 OFF</button>
+            </div>
+        </div>
+
+        <div class="ecu-panel">
+            <h2>Raspberry Pi CAN Hat <span class="status-indicator"></span></h2>
+            <div class="control-group">
+                <button class="control-btn start" onclick="toggleRelay(this, 'canhat')">Relay 8 OFF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check login status
+        if (!sessionStorage.getItem('isLoggedIn')) {
+            window.location.href = 'login.html';
+        }
+
+        // Add logout function
+        function logout() {
+            sessionStorage.removeItem('isLoggedIn');
+            window.location.href = 'login.html';
+        }
+
+        // Prevent using back button
+        window.history.pushState(null, null, window.location.href);
+        window.onpopstate = function () {
+            window.history.pushState(null, null, window.location.href);
+        };
+
+        function toggleRelay(button, relay) {
+            const newState = !button.classList.contains('active');
+            
+            fetch('/relay-state', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ relay, state: newState }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    button.classList.toggle('active');
+                    button.textContent = `Relay ${getRelayNumber(relay)} ${data.state ? 'ON' : 'OFF'}`;
+                    const indicator = button.closest('.ecu-panel').querySelector('.status-indicator');
+                    if (data.state) {
+                        indicator.style.backgroundColor = '#00ff00';
+                        indicator.style.boxShadow = 'none';
+                    } else {
+                        indicator.style.backgroundColor = '#ff0000';
+                        indicator.style.boxShadow = '0 0 5px #ff0000';
+                    }
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function getRelayNumber(relay) {
+            const relayNumbers = {
+                brake: '1',
+                steering1: '2',
+                steering2: '3',
+                mcm: '4',
+                tcm: '5',
+                lscm: '6',
+                power: '7',
+                canhat: '8'
+            };
+            return relayNumbers[relay];
+        }
+
+        // Add initial state loading
+        window.onload = function() {
+            if (!sessionStorage.getItem('isLoggedIn')) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            fetch('/relay-states')
+                .then(response => response.json())
+                .then(states => {
+                    Object.entries(states).forEach(([relay, state]) => {
+                        const button = document.querySelector(`[onclick*="${relay}"]`);
+                        if (button) {
+                            if (state) button.classList.add('active');
+                            button.textContent = `Relay ${getRelayNumber(relay)} ${state ? 'ON' : 'OFF'}`;
+                            const indicator = button.closest('.ecu-panel').querySelector('.status-indicator');
+                            if (state) {
+                                indicator.style.backgroundColor = '#00ff00';
+                                indicator.style.boxShadow = 'none';
+                            } else {
+                                indicator.style.backgroundColor = '#ff0000';
+                                indicator.style.boxShadow = '0 0 5px #ff0000';
+                            }
+                        }
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function updateStatusLight(inputNumber, isOn) {
+            const light = document.getElementById(`status-light-${inputNumber}`);
+            const onButton = document.getElementById(`on-btn-${inputNumber}`);
+            const offButton = document.getElementById(`off-btn-${inputNumber}`);
+            
+            if (isOn) {
+                light.classList.remove('red');
+                light.classList.add('green');
+                onButton.classList.add('active');
+                offButton.classList.remove('active');
+            } else {
+                light.classList.remove('green');
+                light.classList.add('red');
+                offButton.classList.add('active');
+                onButton.classList.remove('active');
+            }
+        }
+
+        // Function to handle input state changes
+        function handleInputChange(inputNumber, isOn) {
+            updateStatusLight(inputNumber, isOn);
+        }
+    </script>
+</body>
+</html> 
