@@ -9,13 +9,13 @@ const fs = require('fs').promises;
 const moment = require('moment');
 const session = require('express-session');
 const crypto = require('crypto');
-const http = require('http');
-const socketIo = require('socket.io');
-
-const server = http.createServer(app);
-const io = socketIo(server);
+const express = require('express');
 const app = express();
-const port = process.env.PORT || 6000;
+const http = require('http');
+const server = http.createServer(app);
+const socketIo = require('socket.io');
+const io = socketIo(server);
+
 
 // JSON files for user and schedule management
 const USERS_FILE = path.join(__dirname, 'config', 'users.json');
@@ -38,7 +38,6 @@ const relayStates = {
 const cppServerHost = '5.tcp.ngrok.io';
 const cppServerPort = 25030;
 
-app.set('trust proxy', 1); // Trust the first proxy
 
 
 // Middleware
