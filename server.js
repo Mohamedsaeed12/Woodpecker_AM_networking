@@ -8,6 +8,8 @@ const cors = require('cors');
 const fs = require('fs').promises;
 const moment = require('moment');
 const session = require('express-session');
+const crypto = require('crypto');
+
 
 const app = express();
 const port = process.env.PORT || 6000;
@@ -84,6 +86,44 @@ async function saveSchedules(schedules) {
     await fs.writeFile(SCHEDULES_FILE, JSON.stringify({ schedules }, null, 2));
 }
 
+async function checkAccessTime(req, res, next) {
+    const username = req.session.username;
+    if (!username) {
+        return res.status(401).json({ success: false, message: 'Unauthorized access' });
+    }
+
+    try {
+        const schedules = await getSchedules();
+        const userSchedules = schedules.filter(schedule => schedule.username === username);
+        const now = moment();
+
+        const hasAccess = userSchedules.some(schedule => {
+            const startTime = moment(schedule.startTime);
+            const endTime = moment(schedule.endTime);
+            return now.isBetween(startTime, endTime, null, '[)');
+        });
+
+        if (hasAccess) {
+            next();
+        } else {
+            res.status(403).json({ success: false, message: 'Access not allowed at this time' });
+        }
+    } catch (error) {
+        console.error('Error checking access time:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+}
+
+// Example of a protected route
+app.get('/protected-route', isAuthenticated, checkAccessTime, (req, res) => {
+    res.json({ success: true, message: 'You have access to this route' });
+});
+
+app.get('/dashboard', isAuthenticated, checkAccessTime, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+
 // Middleware to check if the user is authenticated
 function isAuthenticated(req, res, next) {
     if (req.session && req.session.isLoggedIn) {
@@ -92,6 +132,69 @@ function isAuthenticated(req, res, next) {
         res.status(401).json({ success: false, message: 'Unauthorized access' });
     }
 }
+
+const checkGlobalOverlap = (start, end, schedules) => {
+    const startTime = moment(start, moment.ISO_8601, true);
+    const endTime = moment(end, moment.ISO_8601, true);
+
+    if (!startTime.isValid() || !endTime.isValid()) {
+        console.error('Invalid date format:', { start, end });
+        return false;
+    }
+
+    for (const schedule of schedules) {
+        const scheduleStart = moment(schedule.startTime, moment.ISO_8601, true);
+        const scheduleEnd = moment(schedule.endTime, moment.ISO_8601, true);
+
+        if (
+            startTime.isBetween(scheduleStart, scheduleEnd, null, '[)') ||
+            endTime.isBetween(scheduleStart, scheduleEnd, null, '(]') ||
+            (startTime.isSameOrBefore(scheduleStart) && endTime.isSameOrAfter(scheduleEnd))
+        ) {
+            console.log('Overlap detected:', { startTime, endTime, scheduleStart, scheduleEnd });
+            return true; // Overlap found
+        }
+    }
+    return false; // No overlap
+};
+
+const checkLimits = (start, end, schedules) => {
+    const startTime = moment(start);
+    const endTime = moment(end);
+    const requestedDuration = endTime.diff(startTime, 'hours', true);
+
+    const dayStart = startTime.clone().startOf('day');
+    const dayEnd = startTime.clone().endOf('day');
+    const weekStart = startTime.clone().startOf('week');
+    const weekEnd = startTime.clone().endOf('week');
+
+    let dailyTotal = 0;
+    let weeklyTotal = 0;
+
+    for (const schedule of schedules) {
+        const scheduleStart = moment(schedule.startTime);
+        const scheduleEnd = moment(schedule.endTime);
+        const duration = scheduleEnd.diff(scheduleStart, 'hours', true);
+
+        if (scheduleStart.isBetween(dayStart, dayEnd, null, '[)')) {
+            dailyTotal += duration;
+        }
+        if (scheduleStart.isBetween(weekStart, weekEnd, null, '[)')) {
+            weeklyTotal += duration;
+        }
+    }
+
+    if (dailyTotal + requestedDuration > 4) {
+        return { valid: false, reason: 'Exceeds daily limit of 4 hours' };
+    }
+
+    if (weeklyTotal + requestedDuration > 28) {
+        return { valid: false, reason: 'Exceeds weekly limit of 28 hours' };
+    }
+
+    return { valid: true };
+};
+
 
 // Relay State Management
 app.post('/sendRelayCommand', isAuthenticated, (req, res) => {
@@ -167,6 +270,21 @@ app.post('/users/login', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid password' });
         }
 
+        // Check if current time is within user's scheduled access times
+        const schedules = await getSchedules();
+        const userSchedules = schedules.filter((s) => s.username === user.name);
+        const now = moment();
+
+        const hasAccess = userSchedules.some((schedule) => {
+            const startTime = moment(schedule.startTime);
+            const endTime = moment(schedule.endTime);
+            return now.isBetween(startTime, endTime, null, '[)');
+        });
+
+        if (!hasAccess) {
+            return res.status(403).json({ success: false, message: 'Access not allowed at this time' });
+        }
+
         req.session.isLoggedIn = true;
         req.session.username = user.name;
         res.json({ success: true, message: 'Login successful', role: user.role });
@@ -175,6 +293,9 @@ app.post('/users/login', async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
+
+
+
 
 app.post('/logout', (req, res) => {
     req.session.destroy((err) => {
@@ -187,32 +308,69 @@ app.post('/logout', (req, res) => {
     });
 });
 
-// Schedule Management
+app.get('/schedules/:username', isAuthenticated, async (req, res) => {
+    try {
+        const schedules = await getSchedules();
+        const userSchedules = schedules.filter((s) => s.username === req.params.username);
+        res.json(userSchedules);
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+app.delete('/schedule/:id', isAuthenticated, async (req, res) => {
+    try {
+        const schedules = await getSchedules();
+        const filteredSchedules = schedules.filter((s) => s.id !== req.params.id);
+        await saveSchedules(filteredSchedules);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
 app.post('/schedule', isAuthenticated, async (req, res) => {
     const { startTime, endTime } = req.body;
     const username = req.session.username;
 
-    try {
-        const schedules = await getSchedules();
+    if (!username || !startTime || !endTime) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
 
-        // Validate time order
-        if (moment(startTime).isAfter(moment(endTime))) {
+    try {
+        if (moment(startTime).isSameOrAfter(moment(endTime))) {
             return res.status(400).json({ success: false, message: 'Start time must be before end time' });
         }
 
-        // Check for overlapping schedules
-        const userSchedules = schedules.filter((s) => s.username === username);
-        if (checkOverlap(startTime, endTime, userSchedules)) {
+        const schedules = await getSchedules();
+
+        if (checkGlobalOverlap(startTime, endTime, schedules)) {
             return res.status(400).json({ success: false, message: 'Schedule overlaps with an existing booking' });
         }
 
-        const newSchedule = { id: Date.now().toString(), username, startTime, endTime };
+        const userSchedules = schedules.filter(s => s.username === username);
+        const limitCheck = checkLimits(startTime, endTime, userSchedules);
+
+        if (!limitCheck.valid) {
+            return res.status(400).json({ success: false, message: limitCheck.reason });
+        }
+
+        const newSchedule = { id: crypto.randomUUID(), username, startTime, endTime };
         schedules.push(newSchedule);
         await saveSchedules(schedules);
 
         res.json({ success: true, message: 'Schedule created successfully' });
     } catch (error) {
         console.error('Error creating schedule:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+app.get('/schedules', isAuthenticated, async (req, res) => {
+    try {
+        const schedules = await getSchedules();
+        res.json(schedules);
+    } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });

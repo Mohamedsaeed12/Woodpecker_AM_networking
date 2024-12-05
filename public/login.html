@@ -21,6 +21,7 @@
                 </div>
                 <button type="submit" class="login-btn">Login</button>
                 <button type="button" class="schedule-btn" onclick="window.location.href='schedule.html'">Schedule Access</button>
+                <div id="loginFeedback" class="feedback-message"></div>
             </form>
         </div>
     </div>
@@ -43,6 +44,7 @@
 
             const name = document.getElementById('name').value;
             const password = document.getElementById('password').value;
+            const feedback = document.getElementById('loginFeedback');
 
             fetch('/users/login', {
                 method: 'POST',
@@ -52,6 +54,9 @@
                 body: JSON.stringify({ name, password }),
             })
             .then(response => {
+                if (response.status === 403) {
+                    throw new Error('Access not allowed at this time.');
+                }
                 if (!response.ok) {
                     throw new Error('Invalid credentials');
                 }
@@ -61,12 +66,12 @@
                 if (data.success) {
                     window.location.href = 'dashboard.html';
                 } else {
-                    alert(data.message || 'Invalid credentials');
+                    feedback.textContent = data.message || 'Invalid credentials';
                 }
             })
             .catch(error => {
                 console.error('Login error:', error);
-                alert('Error during login: ' + error.message);
+                feedback.textContent = 'Error during login: ' + error.message;
             });
 
             return false;
