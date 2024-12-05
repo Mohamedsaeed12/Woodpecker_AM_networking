@@ -73,74 +73,73 @@
     </div>
   </div>
 
-  <script>
-    // Redirect to login page if not authenticated
-    fetch('/checkSession')
-      .then(response => response.json())
-      .then(data => {
-        if (!data.isLoggedIn) {
-          window.location.href = 'login.html';
-        }
-      })
-      .catch(error => {
-        console.error('Session check error:', error);
-        alert('Error checking session. Please log in again.');
-        window.location.href = 'login.html';
-      });
+ <script>
+    const socket = io();
 
-    // Logout function
-    function logout() {
-      fetch('/logout', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            window.location.href = 'login.html';
-          } else {
-            alert('Error logging out.');
-          }
-        })
-        .catch(error => {
-          console.error('Logout error:', error);
-          alert('Error during logout. Please try again.');
-        });
+    // Function to update the UI based on relay states
+    function updateRelayUI(relayStates) {
+        for (const relayNumber in relayStates) {
+            const state = relayStates[relayNumber];
+            const button = document.querySelector(`[onclick*="sendRelayCommand(${relayNumber})"]`);
+            if (button) {
+                button.textContent = `Relay ${relayNumber} ${state}`;
+                const indicator = button.closest('.ecu-panel').querySelector('.status-indicator');
+                if (state === 'ON') {
+                    indicator.style.backgroundColor = '#00ff00';
+                    indicator.style.boxShadow = 'none';
+                } else {
+                    indicator.style.backgroundColor = '#ff0000';
+                    indicator.style.boxShadow = '0 0 5px #ff0000';
+                }
+            }
+        }
     }
+
+    // Listen for relay state updates from the server
+    socket.on('relayStates', (updatedRelayStates) => {
+        updateRelayUI(updatedRelayStates);
+    });
 
     // Function to send relay command
     function sendRelayCommand(relayNumber) {
-      const button = document.querySelector(`[onclick*="${relayNumber}"]`);
-      const newState = button.textContent.includes('OFF') ? 'ON' : 'OFF';
+        const button = document.querySelector(`[onclick*="sendRelayCommand(${relayNumber})"]`);
+        const currentState = button.textContent.includes('OFF') ? 'OFF' : 'ON';
+        const newState = currentState === 'OFF' ? 'ON' : 'OFF';
 
-      fetch('/sendRelayCommand', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ relayNumber }),
-      })
+        // Emit relay state change to the server
+        socket.emit('relayStateChange', { relayNumber, newState });
+    }
+
+    // Redirect to login page if not authenticated
+    fetch('/checkSession')
         .then(response => response.json())
         .then(data => {
-          if (data.success) {
-            // Update button text and state
-            button.textContent = `Relay ${relayNumber} ${newState}`;
-
-            // Update status indicator
-            const indicator = button.closest('.ecu-panel').querySelector('.status-indicator');
-            if (newState === 'ON') {
-              indicator.style.backgroundColor = '#00ff00';
-              indicator.style.boxShadow = 'none';
-            } else {
-              indicator.style.backgroundColor = '#ff0000';
-              indicator.style.boxShadow = '0 0 5px #ff0000';
+            if (!data.isLoggedIn) {
+                window.location.href = 'login.html';
             }
-          } else {
-            alert('Failed to send relay command.');
-          }
         })
         .catch(error => {
-          console.error('Error sending relay command:', error);
-          alert('Error communicating with the server.');
+            console.error('Session check error:', error);
+            alert('Error checking session. Please log in again.');
+            window.location.href = 'login.html';
         });
+
+    // Logout function
+    function logout() {
+        fetch('/logout', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = 'login.html';
+                } else {
+                    alert('Error logging out.');
+                }
+            })
+            .catch(error => {
+                console.error('Logout error:', error);
+                alert('Error during logout. Please try again.');
+            });
     }
-  </script>
+</script>
 </body>
 </html>
