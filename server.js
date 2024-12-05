@@ -9,8 +9,11 @@ const fs = require('fs').promises;
 const moment = require('moment');
 const session = require('express-session');
 const crypto = require('crypto');
+const http = require('http');
+const socketIo = require('socket.io');
 
-
+const server = http.createServer(app);
+const io = socketIo(server);
 const app = express();
 const port = process.env.PORT || 6000;
 
@@ -29,6 +32,7 @@ const relayStates = {
     7: 'OFF',
     8: 'OFF',
 };
+
 
 // ngrok C++ server configuration
 const cppServerHost = '5.tcp.ngrok.io';
@@ -58,6 +62,54 @@ app.use(session({
         sameSite: 'lax' // Helps protect against CSRF attacks
     }
 }));
+
+// Serve static files from the 'public' directory
+app.use(express.static('public'));
+
+// Handle client connections
+io.on('connection', (socket) => {
+    console.log('A user connected');
+
+    // Send current relay states to the newly connected client
+    socket.emit('relayStates', relayStates);
+
+    // Handle relay state change requests from clients
+    socket.on('relayStateChange', ({ relayNumber, newState }) => {
+        if (relayStates.hasOwnProperty(relayNumber)) {
+            relayStates[relayNumber] = newState;
+
+            // Broadcast the updated relay states to all connected clients
+            io.emit('relayStates', relayStates);
+
+            // Send command to C++ server (existing logic)
+            const command = `${newState} ${relayNumber}`;
+            const client = new net.Socket();
+
+            client.connect(cppServerPort, cppServerHost, () => {
+                console.log(`Connected to C++ server at ${cppServerHost}:${cppServerPort}`);
+                client.write(command);
+            });
+
+            client.on('data', (data) => {
+                console.log('Response from C++ server:', data.toString());
+                client.destroy();
+            });
+
+            client.on('error', (err) => {
+                console.error('Error communicating with C++ server:', err);
+            });
+
+            client.on('close', () => {
+                console.log('Connection to C++ server closed');
+            });
+        }
+    });
+
+    // Handle client disconnection
+    socket.on('disconnect', () => {
+        console.log('A user disconnected');
+    });
+});
 
 // Helper Functions for JSON File Management
 async function getUsers() {
@@ -205,35 +257,34 @@ app.post('/sendRelayCommand', isAuthenticated, (req, res) => {
     const { relayNumber } = req.body;
 
     if (relayStates.hasOwnProperty(relayNumber)) {
-        // Toggle relay state
         const newState = relayStates[relayNumber] === 'ON' ? 'OFF' : 'ON';
         relayStates[relayNumber] = newState;
+
+        // Broadcast updated states
+        io.emit('relayStates', relayStates);
 
         // Send command to C++ server
         const command = `${newState} ${relayNumber}`;
         const client = new net.Socket();
 
         client.connect(cppServerPort, cppServerHost, () => {
-            console.log(`Connected to C++ server at ${cppServerHost}:${cppServerPort}`);
             client.write(command);
         });
 
         client.on('data', (data) => {
-            console.log('Response from C++ server:', data.toString());
             res.json({ success: true, message: data.toString(), state: relayStates });
             client.destroy();
         });
 
         client.on('error', (err) => {
-            console.error('Error communicating with C++ server:', err);
-            res.status(500).json({ success: false, message: 'Failed to send command to server' });
+            res.status(500).json({ success: false, message: 'Server error' });
         });
 
         client.on('close', () => {
-            console.log('Connection to C++ server closed');
+            console.log('Connection closed');
         });
     } else {
-        res.status(400).json({ success: false, message: 'Invalid relay number specified' });
+        res.status(400).json({ success: false, message: 'Invalid relay number' });
     }
 });
 
@@ -297,9 +348,6 @@ app.post('/users/login', async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
-
-
-
 
 app.post('/logout', (req, res) => {
     req.session.destroy((err) => {
@@ -379,8 +427,7 @@ app.get('/schedules', isAuthenticated, async (req, res) => {
     }
 });
 
-// Start Server
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+server.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
     console.log(`Relay commands are sent to C++ server via ngrok at ${cppServerHost}:${cppServerPort}`);
 });
