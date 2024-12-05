@@ -4,10 +4,13 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <arpa/inet.h>
+#include <sstream>
+#include <string>
 
 #define PORT 25030
-#define SERIAL_PORT "/dev/ttyACM0" 
+#define SERIAL_PORT "/dev/ttyACM0" // Update as needed for your Arduino's port
 
+// Setup Serial Port for Arduino Communication
 int setupSerial(const char* port) {
     int fd = open(port, O_RDWR | O_NOCTTY);
     if (fd == -1) {
@@ -21,15 +24,34 @@ int setupSerial(const char* port) {
         return -1;
     }
 
-   
-    tty.c_cflag = B9600 | CS8 | CLOCAL | CREAD; 
-    tty.c_iflag = IGNPAR;                       
+    tty.c_cflag = B9600 | CS8 | CLOCAL | CREAD; // Baud rate: 9600, 8 data bits, enable receiver
+    tty.c_iflag = IGNPAR;                       // Ignore parity errors
     tty.c_oflag = 0;
-    tty.c_lflag = 0;
+    tty.c_lflag = 0;                            // Non-canonical mode
 
-    tcflush(fd, TCIFLUSH);
-    tcsetattr(fd, TCSANOW, &tty);
+    tcflush(fd, TCIFLUSH);                      // Flush input buffer
+    tcsetattr(fd, TCSANOW, &tty);               // Apply settings
     return fd;
+}
+
+// Process Command and Send to Arduino
+void processCommand(const std::string& command, int serial_fd) {
+    std::istringstream stream(command);
+    std::string action;
+    int relayNumber;
+
+    stream >> action >> relayNumber;
+
+    if (action == "ON" || action == "OFF") {
+        std::cout << "Processing command: " << action << " " << relayNumber << "\n";
+
+        // Send command to Arduino
+        std::string serialCommand = action + " " + std::to_string(relayNumber) + "\n";
+        write(serial_fd, serialCommand.c_str(), serialCommand.size());
+        std::cout << "Sent to Arduino: " << serialCommand;
+    } else {
+        std::cerr << "Unknown command: " << command << "\n";
+    }
 }
 
 int main() {
@@ -37,35 +59,39 @@ int main() {
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
-    char buffer[1024] = {0};
 
- 
+    // Initialize Serial Port for Arduino
     serial_fd = setupSerial(SERIAL_PORT);
     if (serial_fd < 0) {
         return -1;
     }
     std::cout << "Serial port connected to Arduino.\n";
 
+    // Create Socket
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == 0) {
         perror("Socket failed");
         return -1;
     }
 
+    // Set Socket Options
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
         perror("setsockopt");
         return -1;
     }
 
+    // Configure Address
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
 
+    // Bind Socket
     if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("Bind failed");
         return -1;
     }
 
+    // Start Listening
     if (listen(server_fd, 3) < 0) {
         perror("Listen failed");
         return -1;
@@ -74,6 +100,7 @@ int main() {
     std::cout << "C++ Server is listening on port " << PORT << "...\n";
 
     while (true) {
+        // Accept Incoming Connection
         new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen);
         if (new_socket < 0) {
             perror("Accept failed");
@@ -82,29 +109,28 @@ int main() {
 
         std::cout << "Client connected!\n";
 
+        // Read Data from Client
+        char buffer[1024] = {0};
         int bytes_read = read(new_socket, buffer, sizeof(buffer) - 1);
         if (bytes_read > 0) {
-            buffer[bytes_read] = '\0';
-            std::cout << "Received: " << buffer << "\n";
+            buffer[bytes_read] = '\0'; // Null-terminate the received string
+            std::string command(buffer);
+            std::cout << "Received: " << command << "\n";
 
-            // Send command to Arduino
-            if (strcmp(buffer, "ON") == 0 || strcmp(buffer, "OFF") == 0) {
-                write(serial_fd, buffer, strlen(buffer));
-                write(serial_fd, "\n", 1); // Add newline for Arduino to parse
-                std::cout << "Sent command to Arduino: " << buffer << "\n";
-            }
+            // Process Command and Forward to Arduino
+            processCommand(command, serial_fd);
 
-            // Respond to client
-            std::string response = "Command received: " + std::string(buffer);
+            // Respond to Client
+            std::string response = "Command processed: " + command;
             send(new_socket, response.c_str(), response.length(), 0);
         } else {
             std::cerr << "Error reading from client.\n";
         }
 
-        close(new_socket);
+        close(new_socket); // Close Client Connection
     }
 
-    close(serial_fd);
-    close(server_fd);
+    close(serial_fd); // Close Serial Port
+    close(server_fd); // Close Server Socket
     return 0;
 }

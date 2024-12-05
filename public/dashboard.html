@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECU Control Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="header">
+    <div class="header-content">
+      <h1>Vehicle ECU Remote Control Dashboard</h1>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- ECU Dashboard -->
+  <div class="dashboard-grid">
+    <div class="ecu-panel">
+      <h2>Brake Controller <span class="status-indicator"></span></h2>
+      <div class="control-group">
+        <button class="control-btn" onclick="sendRelayCommand(1)">Relay 1 OFF</button>
+      </div>
+    </div>
+
+    <div class="ecu-panel">
+      <h2>Steering System 1 <span class="status-indicator"></span></h2>
+      <div class="control-group">
+        <button class="control-btn" onclick="sendRelayCommand(2)">Relay 2 OFF</button>
+      </div>
+    </div>
+
+    <div class="ecu-panel">
+      <h2>Steering System 2 <span class="status-indicator"></span></h2>
+      <div class="control-group">
+        <button class="control-btn" onclick="sendRelayCommand(3)">Relay 3 OFF</button>
+      </div>
+    </div>
+
+    <div class="ecu-panel">
+      <h2>MCM Radio Receiver <span class="status-indicator"></span></h2>
+      <div class="control-group">
+        <button class="control-btn" onclick="sendRelayCommand(4)">Relay 4 OFF</button>
+      </div>
+    </div>
+
+    <div class="ecu-panel">
+      <h2>TCM Accelerator <span class="status-indicator"></span></h2>
+      <div class="control-group">
+        <button class="control-btn" onclick="sendRelayCommand(5)">Relay 5 OFF</button>
+      </div>
+    </div>
+
+    <div class="ecu-panel">
+      <h2>LSCM Lighting System <span class="status-indicator"></span></h2>
+      <div class="control-group">
+        <button class="control-btn" onclick="sendRelayCommand(6)">Relay 6 OFF</button>
+      </div>
+    </div>
+
+    <div class="ecu-panel">
+      <h2>5V Power Supply <span class="status-indicator"></span></h2>
+      <div class="control-group">
+        <button class="control-btn" onclick="sendRelayCommand(7)">Relay 7 OFF</button>
+      </div>
+    </div>
+
+    <div class="ecu-panel">
+      <h2>Raspberry Pi CAN Hat <span class="status-indicator"></span></h2>
+      <div class="control-group">
+        <button class="control-btn" onclick="sendRelayCommand(8)">Relay 8 OFF</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Redirect to login page if not authenticated
+    fetch('/checkSession')
+      .then(response => response.json())
+      .then(data => {
+        if (!data.isLoggedIn) {
+          window.location.href = 'login.html';
+        }
+      })
+      .catch(error => {
+        console.error('Session check error:', error);
+        alert('Error checking session. Please log in again.');
+        window.location.href = 'login.html';
+      });
+
+    // Logout function
+    function logout() {
+      fetch('/logout', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            window.location.href = 'login.html';
+          } else {
+            alert('Error logging out.');
+          }
+        })
+        .catch(error => {
+          console.error('Logout error:', error);
+          alert('Error during logout. Please try again.');
+        });
+    }
+
+    // Function to send relay command
+    function sendRelayCommand(relayNumber) {
+      const button = document.querySelector(`[onclick*="${relayNumber}"]`);
+      const newState = button.textContent.includes('OFF') ? 'ON' : 'OFF';
+
+      fetch('/sendRelayCommand', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ relayNumber }),
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Update button text and state
+            button.textContent = `Relay ${relayNumber} ${newState}`;
+
+            // Update status indicator
+            const indicator = button.closest('.ecu-panel').querySelector('.status-indicator');
+            if (newState === 'ON') {
+              indicator.style.backgroundColor = '#00ff00';
+              indicator.style.boxShadow = 'none';
+            } else {
+              indicator.style.backgroundColor = '#ff0000';
+              indicator.style.boxShadow = '0 0 5px #ff0000';
+            }
+          } else {
+            alert('Failed to send relay command.');
+          }
+        })
+        .catch(error => {
+          console.error('Error sending relay command:', error);
+          alert('Error communicating with the server.');
+        });
+    }
+  </script>
+</body>
+</html>

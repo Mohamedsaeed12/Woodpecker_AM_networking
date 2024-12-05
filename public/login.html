@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - ECU Control Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <h1>ECU Control Dashboard</h1>
+            <form id="loginForm" onsubmit="return validateLogin(event)">
+                <div class="input-group">
+                    <label for="name">Username:</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+                <button type="button" class="schedule-btn" onclick="window.location.href='schedule.html'">Schedule Access</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Check if already logged in
+        window.onload = function() {
+            fetch('/checkSession')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.isLoggedIn) {
+                        window.location.href = 'dashboard.html';
+                    }
+                })
+                .catch(error => console.error('Session check error:', error));
+        };
+
+        function validateLogin(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('name').value;
+            const password = document.getElementById('password').value;
+
+            fetch('/users/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, password }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Invalid credentials');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    window.location.href = 'dashboard.html';
+                } else {
+                    alert(data.message || 'Invalid credentials');
+                }
+            })
+            .catch(error => {
+                console.error('Login error:', error);
+                alert('Error during login: ' + error.message);
+            });
+
+            return false;
+        }
+    </script>
+</body>
+</html>
