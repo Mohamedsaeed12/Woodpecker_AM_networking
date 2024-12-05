@@ -80,7 +80,13 @@
 
         // Add logout function
         function logout() {
+            // Clear session storage
             sessionStorage.removeItem('isLoggedIn');
+            
+            // Optionally, you can also make a request to the server to handle any server-side session cleanup if needed
+            fetch('/logout', { method: 'POST' }); // This is optional if you have server-side session management
+            
+            // Redirect to login page
             window.location.href = 'login.html';
         }
 

@@ -35,7 +35,7 @@
 
         <div class="schedule-container">
             <div class="schedule-box">
-                <h2>Set Access Schedule</h2>
+                <h3>Set Access Schedule</h3>
                 <form id="scheduleForm">
                     <div class="input-group">
                         <label for="startTime">Start Time:</label>
@@ -96,42 +96,28 @@
             window.location.href = 'login.html';
         }
 
-        document.getElementById('scheduleForm').addEventListener('submit', async function(e) {
+        document.getElementById('scheduleForm').addEventListener('submit', async function (e) {
             e.preventDefault();
             const startTime = document.getElementById('startTime').value;
             const endTime = document.getElementById('endTime').value;
-            const username = sessionStorage.getItem('username');
-
-            if (!username) {
-                alert('Please log in first');
-                window.location.href = 'login.html';
-                return;
-            }
 
             try {
                 const response = await fetch('/schedule', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        username,
-                        startTime,
-                        endTime
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ startTime, endTime }),
                 });
 
-                const data = await response.json();
-                if (data.success) {
+                const result = await response.json();
+                if (result.success) {
                     alert('Schedule created successfully!');
                     loadSchedules();
-                    document.getElementById('scheduleForm').reset();
                 } else {
-                    alert('Failed to create schedule: ' + (data.message || 'Unknown error'));
+                    alert('Error: ' + result.message);
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error creating schedule');
+                alert('Failed to create schedule.');
             }
         });
 

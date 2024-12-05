@@ -1,22 +1,14 @@
-{
-  "schedules": [
-    {
-      "id": "1732549061352",
-      "username": "admin",
-      "startTime": "2024-11-25T10:37",
-      "endTime": "2024-11-25T00:37"
-    },
-    {
-      "id": "1732561410447",
-      "username": "mohamed",
-      "startTime": "2024-11-25T14:03",
-      "endTime": "2024-11-25T13:03"
-    },
-    {
-      "id": "1732561428430",
-      "username": "mohamed",
-      "startTime": "2024-11-25T15:03",
-      "endTime": "2024-11-25T18:03"
-    }
-  ]
-}
+[
+  {
+    "id": "c3fb6a91-274e-41c1-bfb0-82823b4729cd",
+    "username": "mohamed",
+    "startTime": "2024-12-04T01:10",
+    "endTime": "2024-12-04T02:10"
+  },
+  {
+    "id": "c6f849c0-f1e8-4dc8-b8c3-6824a32c5d65",
+    "username": "mohamed",
+    "startTime": "2024-12-04T03:11",
+    "endTime": "2024-12-04T06:11"
+  }
+]
