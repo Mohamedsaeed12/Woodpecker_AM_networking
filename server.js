@@ -123,6 +123,10 @@ app.get('/dashboard', isAuthenticated, checkAccessTime, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
+app.get('/schedule', isAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'schedule.html'));
+});
+
 
 // Middleware to check if the user is authenticated
 function isAuthenticated(req, res, next) {
