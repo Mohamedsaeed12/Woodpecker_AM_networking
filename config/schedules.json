@@ -1,0 +1,16 @@
+{
+  "schedules": [
+    {
+      "id": "17fe3254-26c5-4516-b878-3c83d004522a",
+      "username": "mohamed",
+      "startTime": "2024-12-06T16:27",
+      "endTime": "2024-12-06T17:37"
+    },
+    {
+      "id": "4cce4636-25bb-47dc-9045-b9456db4014a",
+      "username": "admin1",
+      "startTime": "2024-12-06T12:30",
+      "endTime": "2024-12-06T16:26"
+    }
+  ]
+}

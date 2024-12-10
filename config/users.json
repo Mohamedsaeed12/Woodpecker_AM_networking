@@ -1,0 +1,24 @@
+{
+  "users": [
+    {
+      "name": "admin",
+      "password": "$2b$10$TTK7Qf5C.at54UjrOfA4l.CfNL3Kc5aSIFEFCb.v4TOX7pLzRHiFi",
+      "role": "admin"
+    },
+    {
+      "name": "mohamed",
+      "password": "$2b$10$TTK7Qf5C.at54UjrOfA4l.CfNL3Kc5aSIFEFCb.v4TOX7pLzRHiFi",
+      "role": "user"
+    },
+    {
+      "name": "andrew",
+      "password": "$2b$10$s2llq3113HUgiDo.fAp3FeilT.nWIMFeYPumgPZfRScj0FBCA9H9K",
+      "role": "user"
+    },
+    {
+      "name": "admin1",
+      "password": "$2b$10$OB7VRkQkBNDyt6rZ15U1gus6npa/FCeaTJw8Kx4K2HhLVMXjzoxQu",
+      "role": "admin"
+    }
+  ]
+}

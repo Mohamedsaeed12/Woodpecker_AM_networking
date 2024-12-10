@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule Dashboard Access</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Login Section -->
+    <div class="login-container" id="loginSection">
+        <div class="login-box">
+            <h1>Schedule Access Login</h1>
+            <form id="loginForm" onsubmit="return validateScheduleLogin(event)">
+                <div class="input-group">
+                    <label for="name">Username:</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+                <div id="loginFeedback" class="feedback-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Schedule Management Section -->
+    <div class="schedule-section" id="scheduleSection" style="display: none;">
+        <div class="header">
+            <div class="header-content">
+                <h1>Schedule Dashboard Access</h1>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <div class="schedule-container">
+            <div class="schedule-box">
+                <h2>Set Access Schedule</h2>
+                <form id="scheduleForm" onsubmit="return createSchedule(event)">
+                    <div class="input-group">
+                        <label for="startTime">Start Time:</label>
+                        <input type="datetime-local" id="startTime" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="endTime">End Time:</label>
+                        <input type="datetime-local" id="endTime" required>
+                    </div>
+                    <button type="submit" class="login-btn">Set Schedule</button>
+                    <div id="scheduleFeedback" class="feedback-message"></div>
+                </form>
+                <div id="currentSchedule" class="schedule-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Validate Login
+        async function validateScheduleLogin(event) {
+            event.preventDefault();
+            const name = document.getElementById('name').value;
+            const password = document.getElementById('password').value;
+            const feedback = document.getElementById('loginFeedback');
+
+            try {
+                const response = await fetch('/users/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, password, accessType: 'schedule' }),
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('scheduleSection').style.display = 'block';
+                    loadSchedules();
+                } else {
+                    feedback.textContent = data.message || 'Invalid credentials';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                feedback.textContent = 'Error during login: ' + error.message;
+            }
+        }
+
+        // Create a Schedule
+        async function createSchedule(event) {
+            event.preventDefault();
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+
+            try {
+                const response = await fetch('/schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ startTime, endTime }),
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('Schedule created successfully!');
+                    loadSchedules();
+                    document.getElementById('scheduleForm').reset();
+                } else {
+                    alert('Failed to create schedule: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Schedule creation error:', error);
+                alert('Error creating schedule');
+            }
+        }
+
+        // Load Existing Schedules
+        async function loadSchedules() {
+            try {
+                const response = await fetch('/schedules');
+                const schedules = await response.json();
+                const scheduleList = document.getElementById('currentSchedule');
+                scheduleList.innerHTML = '<h3>Current Schedules</h3>';
+                schedules.forEach(schedule => {
+                    const div = document.createElement('div');
+                    div.className = 'schedule-item';
+                    div.innerHTML = `
+                        <div>
+                            <p>Start: ${new Date(schedule.startTime).toLocaleString()}</p>
+                            <p>End: ${new Date(schedule.endTime).toLocaleString()}</p>
+                        </div>
+                        <button onclick="deleteSchedule('${schedule.id}')" class="delete-btn">Delete</button>
+                    `;
+                    scheduleList.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Error loading schedules:', error);
+            }
+        }
+
+        // Delete a Schedule
+        async function deleteSchedule(id) {
+            try {
+                const response = await fetch(`/schedule/${id}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) {
+                    loadSchedules();
+                } else {
+                    alert('Error deleting schedule');
+                }
+            } catch (error) {
+                console.error('Schedule deletion error:', error);
+            }
+        }
+
+        // Logout Function
+        function logout() {
+            fetch('/logout', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = 'login.html';
+                    } else {
+                        alert('Error logging out.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Logout error:', error);
+                    alert('Error during logout. Please try again.');
+                });
+        }
+
+        fetch('/users/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: username,
+                password: userPassword,
+                accessType: 'schedule' // Specify this is a schedule login
+            }),
+        });
+
+
+
+    </script>
+</body>
+</html>

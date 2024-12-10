@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECU Control Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Additional styles for button states */
+    .control-btn.on {
+      background-color: #00ff00;
+      color: #000;
+    }
+    .control-btn.off {
+      background-color: #ff0000;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-content">
+      <h1>Vehicle ECU Remote Control Dashboard</h1>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- ECU Dashboard -->
+  <div class="dashboard-grid">
+    <!-- Dynamically rendered ECU panels will be inserted here -->
+  </div>
+
+  <script>
+    // Redirect to login page if not authenticated
+    fetch('/checkSession')
+      .then(response => response.json())
+      .then(data => {
+        if (!data.isLoggedIn) {
+          window.location.href = 'login.html';
+        } else {
+          fetchRelayStates(); // Fetch the current relay states when authenticated
+        }
+      })
+      .catch(error => {
+        console.error('Session check error:', error);
+        alert('Error checking session. Please log in again.');
+        window.location.href = 'login.html';
+      });
+
+    // Logout function
+    function logout() {
+      fetch('/logout', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            window.location.href = 'login.html';
+          } else {
+            alert('Error logging out.');
+          }
+        })
+        .catch(error => {
+          console.error('Logout error:', error);
+          alert('Error during logout. Please try again.');
+        });
+    }
+
+    // Fetch and render relay states
+    function fetchRelayStates() {
+      fetch('/getRelayStates') // Adjusted to fetch from the updated endpoint
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            renderDashboard(data.relayStates); // Render dashboard with current relay states
+          } else {
+            console.error('Failed to fetch relay states:', data.message);
+            alert(data.message || 'Failed to fetch relay states.');
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching relay states:', error);
+          alert('Error fetching relay states. Please try again.');
+        });
+    }
+
+    // Render the dashboard with current relay states
+    function renderDashboard(relayStates) {
+      const dashboardGrid = document.querySelector('.dashboard-grid');
+      dashboardGrid.innerHTML = ''; // Clear existing dashboard content
+
+      Object.keys(relayStates).forEach(relayNumber => {
+        const state = relayStates[relayNumber];
+        const title = relayNumber <= 8 ? `High Relay ${relayNumber}` : `Low Relay ${relayNumber}`;
+        const panel = document.createElement('div');
+        panel.className = 'ecu-panel';
+        panel.innerHTML = `
+          <h2>${title} <span class="status-indicator" style="background-color: ${state === 'ON' ? '#00ff00' : '#ff0000'};"></span></h2>
+          <div class="control-group">
+            <button 
+              class="control-btn ${state === 'ON' ? 'on' : 'off'}" 
+              onclick="sendRelayCommand(${relayNumber})"
+            >
+              Relay ${relayNumber} ${state}
+            </button>
+          </div>
+        `;
+        dashboardGrid.appendChild(panel);
+      });
+    }
+
+    // Function to send relay command
+    function sendRelayCommand(relayNumber) {
+      fetch('/sendRelayCommand', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ relayNumber }),
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            renderDashboard(data.state); // Update the dashboard with the new relay states
+          } else {
+            alert(data.message || 'Failed to send relay command.');
+          }
+        })
+        .catch(error => {
+          console.error('Error sending relay command:', error);
+          alert('Error communicating with the server.');
+        });
+    }
+
+    // Poll for relay state updates every 5 seconds to keep the UI in sync
+    setInterval(fetchRelayStates, 5000);
+
+    // Initial fetch on page load
+    fetchRelayStates();
+  </script>
+</body>
+</html>
